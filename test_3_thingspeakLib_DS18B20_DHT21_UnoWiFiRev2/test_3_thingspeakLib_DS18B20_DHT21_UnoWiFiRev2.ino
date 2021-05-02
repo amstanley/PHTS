@@ -6,11 +6,14 @@
 #include <OneWire.h>
 #include <DallasTemperature.h>
 #include <WiFiNINA.h>
-
+#include <ThingSpeak.h>
+#include <Adafruit_Sensor.h>
+#include <DHT.h>
+// #include <DHT_U.h>
 #include "arduino_secrets.h"
 
 // Data wire is plugged into port 4 on the Arduino
-#define ONE_WIRE_BUS 4
+#define ONE_WIRE_BUS 2
 
 // Setup a oneWire instance to communicate with any OneWire devices (not just Maxim/Dallas temperature ICs)
 OneWire oneWire(ONE_WIRE_BUS);
@@ -27,12 +30,20 @@ DeviceAddress intakeAddress = { 0x28, 0x3A, 0xD1, 0xED, 0x0C, 0x00, 0x00, 0xC0 }
 DeviceAddress midpointAddress = { 0x28, 0x11, 0xB0, 0xEC, 0x0C, 0x00, 0x00, 0xDD };
 DeviceAddress outletAddress = { 0x28, 0x31, 0x5D, 0xEC, 0x0C, 0x00, 0x00, 0x5D };
 
+//DHT 
+#define DHTPIN 6     // Digital pin connected to the DHT sensor 
+#define DHTTYPE DHT21 // DHT 21 (AM2301)
+DHT dht(DHTPIN, DHTTYPE);
+
 // these next items are in a password file I have gitignored. 
 // referenced here so you can see you need to declare them
 // tutorial for this is at https://www.andreagrandi.it/2020/12/16/how-to-safely-store-arduino-secrets/
 // note the include syntax above is pretty specific
 
-String apiKey =SECRET_API_KEY_FROM_THINGSPEAK; // api from ThingSpeak
+// Secrets
+unsigned long myChannelNumber = SECRET_CH_ID;
+const char * apiKey = SECRET_API_KEY_FROM_THINGSPEAK; // api from ThingSpeak
+
 char ssid[] = SECRET_SSID_FOR_WIFI_AP; //  your network SSID (name)
 char pass[] = SECRET_WIFI_PASSWORD;    //your network password
 
@@ -78,20 +89,21 @@ void setup() {
   
   Serial.println("Connected to wifi");
   printWifiStatus();
-
-  // start serial port
-  Serial.begin(9600);
   
-  // Start up the library
+  // Start up all the things
+  Serial.begin(9600);
   sensors.begin();
+  sensors.requestTemperatures();
+  ThingSpeak.begin(client);  //Initialize ThingSpeak
+  dht.begin();
+  
 }
 
 void loop(void) { 
   
-  // Print the data
+  // Print the data from the DS18B20 Sensors
   float tempIntake = sensors.getTempC(intakeAddress);
     Serial.println("Intake Sensor ");
-    Serial.print(intake);
     Serial.print(": Temp C: ");
     Serial.print(tempIntake);
     Serial.print(" Temp F: ");
@@ -99,7 +111,6 @@ void loop(void) {
   
   float tempMidpoint = sensors.getTempC(midpointAddress);
     Serial.println("Midpoint Sensor ");
-    Serial.print(midpoint);
     Serial.print(": Temp C: ");
     Serial.print(tempMidpoint);
     Serial.print(" Temp F: ");
@@ -107,36 +118,63 @@ void loop(void) {
   
   float tempOutlet = sensors.getTempC(outletAddress);
     Serial.println("Outlet Sensor ");
-    Serial.print(outlet);
     Serial.print(": Temp C: ");
     Serial.print(tempOutlet);
     Serial.print(" Temp F: ");
     Serial.println(DallasTemperature::toFahrenheit(tempOutlet)); // Converts tempC to Fahrenheit
 
-// create data string to send to ThingSpeak
-  String data = String("field1=" + String(DallasTemperature::toFahrenheit(tempIntake), DEC) + "&field2=" + String(DallasTemperature::toFahrenheit(tempMidpoint), DEC) + "&field3=" + String(DallasTemperature::toFahrenheit(tempOutlet), DEC)); 
-  
-  // close any connection before sending a new request
-  client.stop();
+  // Print the data from the DHT 21 Sensor
+  // Get temperature event and print its value.
+   // Reading temperature or humidity takes about 250 milliseconds!
+  // Sensor readings may also be up to 2 seconds 'old' (its a very slow sensor)
+  float h = dht.readHumidity();
+  // Read temperature as Celsius (the default)
+  float t = dht.readTemperature();
+  // Read temperature as Fahrenheit (isFahrenheit = true)
+  float f = dht.readTemperature(true);
 
-  // POST data to ThingSpeak
-  if (client.connect(server, 80)) {
-    client.println("POST /update HTTP/1.1");
-    client.println("Host: api.thingspeak.com");
-    client.println("Connection: close");
-    client.println("User-Agent: ArduinoWiFi/1.1");
-    client.println("X-THINGSPEAKAPIKEY: "+apiKey);
-    client.println("Content-Type: application/x-www-form-urlencoded");
-    client.print("Content-Length: ");
-    client.print(data.length());
-    client.print("\n\n");
-    client.print(data);
-    Serial.println("Data Sent to Thingspeak:");
-    Serial.print(data);
-    } else {
-      Serial.println("*** Connection to Thingspeak Not Established");
-    }
-  
+  // Check if any reads failed and exit early (to try again).
+  if (isnan(h) || isnan(t) || isnan(f)) {
+    Serial.println(F("Failed to read from DHT sensor!"));
+    return;
+  }
+
+  // Compute heat index in Fahrenheit (the default)
+  float hif = dht.computeHeatIndex(f, h);
+  // Compute heat index in Celsius (isFahreheit = false)
+  float hic = dht.computeHeatIndex(t, h, false);
+
+  Serial.print(F("Humidity: "));
+  Serial.print(h);
+  Serial.print(F("%  Temperature: "));
+  Serial.print(t);
+  Serial.print(F("°C "));
+  Serial.print(f);
+  Serial.print(F("°F  Heat index: "));
+  Serial.print(hic);
+  Serial.print(F("°C "));
+  Serial.print(hif);
+  Serial.println(F("°F"));
+   
+
+// init data string to send to ThingSpeak
+// not this way --  String data = String("field1=" + String(DallasTemperature::toFahrenheit(tempIntake), DEC) + "&field2=" + String(DallasTemperature::toFahrenheit(tempMidpoint), DEC) + "&field3=" + String(DallasTemperature::toFahrenheit(tempOutlet), DEC)); 
+
+ThingSpeak.setField(1, DallasTemperature::toFahrenheit(tempIntake));
+ThingSpeak.setField(2, DallasTemperature::toFahrenheit(tempMidpoint));
+ThingSpeak.setField(3, DallasTemperature::toFahrenheit(tempOutlet));
+ThingSpeak.setField(4, f);
+ThingSpeak.setField(5, h);
+
+// write to the ThingSpeak channel
+  int x = ThingSpeak.writeFields(myChannelNumber, apiKey);
+  if(x == 200){
+    Serial.println("Channel update successful.");
+  }
+  else{
+    Serial.println("Problem updating channel. HTTP error code " + String(x));
+  }
+    
   delay(60000); 
 }
 
