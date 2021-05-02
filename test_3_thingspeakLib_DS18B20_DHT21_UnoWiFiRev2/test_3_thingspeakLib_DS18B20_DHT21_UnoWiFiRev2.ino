@@ -9,9 +9,9 @@
 #include <ThingSpeak.h>
 #include <Adafruit_Sensor.h>
 #include <DHT.h>
-// #include <DHT_U.h>
 #include "arduino_secrets.h"
 
+// One wire for the DS18B20 etc: https://randomnerdtutorials.com/guide-for-ds18b20-temperature-sensor-with-arduino/#:~:text=The%20DS18B20%20temperature%20sensor%20is%20a%20one%2Dwire%20digital%20sensor,sensor%20by%20its%20unique%20address.
 // Data wire is plugged into port 4 on the Arduino
 #define ONE_WIRE_BUS 2
 
@@ -31,6 +31,8 @@ DeviceAddress midpointAddress = { 0x28, 0x11, 0xB0, 0xEC, 0x0C, 0x00, 0x00, 0xDD
 DeviceAddress outletAddress = { 0x28, 0x31, 0x5D, 0xEC, 0x0C, 0x00, 0x00, 0x5D };
 
 //DHT 
+// could not get this to work. no idea why. https://github.com/adafruit/DHT-sensor-library/blob/master/examples/DHT_Unified_Sensor/DHT_Unified_Sensor.ino
+// this on the other hand worked quite well: https://github.com/adafruit/DHT-sensor-library/blob/master/examples/DHTtester/DHTtester.ino
 #define DHTPIN 6     // Digital pin connected to the DHT sensor 
 #define DHTTYPE DHT21 // DHT 21 (AM2301)
 DHT dht(DHTPIN, DHTTYPE);
@@ -41,11 +43,11 @@ DHT dht(DHTPIN, DHTTYPE);
 // note the include syntax above is pretty specific
 
 // Secrets
-unsigned long myChannelNumber = SECRET_CH_ID;
-const char * apiKey = SECRET_API_KEY_FROM_THINGSPEAK; // api from ThingSpeak
+unsigned long myChannelNumber = SECRET_CH_ID;         // channel ID fromn thingspeak channel settings
+const char * apiKey = SECRET_API_KEY_FROM_THINGSPEAK; // api key from ThingSpeak channel settings
 
-char ssid[] = SECRET_SSID_FOR_WIFI_AP; //  your network SSID (name)
-char pass[] = SECRET_WIFI_PASSWORD;    //your network password
+char ssid[] = SECRET_SSID_FOR_WIFI_AP;                //  your network SSID (name)
+char pass[] = SECRET_WIFI_PASSWORD;                   //your network password
 
 
 // next #define WEBSITE "api.thingspeak.com"
@@ -92,10 +94,10 @@ void setup() {
   
   // Start up all the things
   Serial.begin(9600);
-  sensors.begin();
-  sensors.requestTemperatures();
-  ThingSpeak.begin(client);  //Initialize ThingSpeak
-  dht.begin();
+  sensors.begin();               // DS18B20
+  sensors.requestTemperatures(); //<-- See https://forum.arduino.cc/t/why-does-this-fix-work-for-ds18b20-error-code-85/529580 just wow.
+  ThingSpeak.begin(client);      //Initialize ThingSpeak
+  dht.begin();                   // DHT21
   
 }
 
@@ -159,6 +161,7 @@ void loop(void) {
 
 // init data string to send to ThingSpeak
 // not this way --  String data = String("field1=" + String(DallasTemperature::toFahrenheit(tempIntake), DEC) + "&field2=" + String(DallasTemperature::toFahrenheit(tempMidpoint), DEC) + "&field3=" + String(DallasTemperature::toFahrenheit(tempOutlet), DEC)); 
+// this way: https://github.com/mathworks/thingspeak-arduino/tree/master/examples/ArduinoUnoWiFi%20Rev2/WriteMultipleFields
 
 ThingSpeak.setField(1, DallasTemperature::toFahrenheit(tempIntake));
 ThingSpeak.setField(2, DallasTemperature::toFahrenheit(tempMidpoint));
