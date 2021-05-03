@@ -26,6 +26,7 @@ char intake[]   = "283AD1ED0C0000C0";
 char midpoint[] = "2811B0EC0C0000DD";
 char outlet[]   = "28315DEC0C00005D";
 
+// See test 1 for how I got these values
 DeviceAddress intakeAddress = { 0x28, 0x3A, 0xD1, 0xED, 0x0C, 0x00, 0x00, 0xC0 };
 DeviceAddress midpointAddress = { 0x28, 0x11, 0xB0, 0xEC, 0x0C, 0x00, 0x00, 0xDD };
 DeviceAddress outletAddress = { 0x28, 0x31, 0x5D, 0xEC, 0x0C, 0x00, 0x00, 0x5D };
@@ -93,16 +94,18 @@ void setup() {
   printWifiStatus();
   
   // Start up all the things
-  Serial.begin(9600);
   sensors.begin();               // DS18B20
   sensors.requestTemperatures(); //<-- See https://forum.arduino.cc/t/why-does-this-fix-work-for-ds18b20-error-code-85/529580 just wow.
   ThingSpeak.begin(client);      //Initialize ThingSpeak
   dht.begin();                   // DHT21
-  
+  delay(10000);
 }
 
 void loop(void) { 
-  
+
+  // get the temps
+  sensors.requestTemperatures(); 
+
   // Print the data from the DS18B20 Sensors
   float tempIntake = sensors.getTempC(intakeAddress);
     Serial.println("Intake Sensor ");
