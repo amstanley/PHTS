@@ -22,14 +22,16 @@ OneWire oneWire(ONE_WIRE_BUS);
 DallasTemperature sensors(&oneWire);
 
 // Labeled Temperature Sensors are as follows
-char intake[]   = "283AD1ED0C0000C0";
-char midpoint[] = "2811B0EC0C0000DD";
+// these are not used;
+char intake[]   = "2811B0EC0C0000DD";
+char midpoint[] = "283AD1ED0C0000C0";
 char outlet[]   = "28315DEC0C00005D";
 
 // See test 1 for how I got these values
-DeviceAddress intakeAddress = { 0x28, 0x3A, 0xD1, 0xED, 0x0C, 0x00, 0x00, 0xC0 };
-DeviceAddress midpointAddress = { 0x28, 0x11, 0xB0, 0xEC, 0x0C, 0x00, 0x00, 0xDD };
-DeviceAddress outletAddress = { 0x28, 0x31, 0x5D, 0xEC, 0x0C, 0x00, 0x00, 0x5D };
+// these are used
+DeviceAddress intakeAddress =   { 0x28, 0x11, 0xB0, 0xEC, 0x0C, 0x00, 0x00, 0xDD };
+DeviceAddress midpointAddress = { 0x28, 0x3A, 0xD1, 0xED, 0x0C, 0x00, 0x00, 0xC0 };
+DeviceAddress outletAddress =   { 0x28, 0x31, 0x5D, 0xEC, 0x0C, 0x00, 0x00, 0x5D };
 
 //DHT 
 // could not get this to work. no idea why. https://github.com/adafruit/DHT-sensor-library/blob/master/examples/DHT_Unified_Sensor/DHT_Unified_Sensor.ino
